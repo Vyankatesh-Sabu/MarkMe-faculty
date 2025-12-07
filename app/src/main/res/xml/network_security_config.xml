@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      Policy summary:
+      - By default, cleartext (HTTP) is disabled.
+      - Allow cleartext only for the local dev server at 172.16.18.92 (used during development).
+      - Production should use HTTPS; consider removing the <domain-config> entry before release.
+    -->
+
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Allow cleartext only for local dev host -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">172.16.18.92</domain>
+    </domain-config>
+</network-security-config>
+

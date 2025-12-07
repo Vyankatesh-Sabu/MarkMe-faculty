@@ -4,88 +4,94 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import com.vrsabu.markme.data.remote.RetrofitInstance
-import com.vrsabu.markme.data.remote.models.coffee
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.vrsabu.markme.data.repository.AuthRepository
+import com.vrsabu.markme.navigation.Screen
+import com.vrsabu.markme.ui.screens.home.MarkMeHomeScreen
+import com.vrsabu.markme.ui.screens.login.AuthViewModel
+import com.vrsabu.markme.ui.screens.login.LoginPage
+import com.vrsabu.markme.ui.screens.profile.ProfileScreen
 import com.vrsabu.markme.ui.theme.MarkMeTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import com.vrsabu.markme.ui.screens.home.HomeViewModel
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val navController = rememberNavController()
+            // Get the AuthRepository from the Application instance
+
+            val app = application as MarkMeApp
             MarkMeTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                AppNavHost(navController = navController, app)
             }
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    // Hold the list of coffee in Compose state
-    val coffeesState = remember { mutableStateOf<List<coffee>>(emptyList()) }
-
-    // Launch a coroutine in the composition to fetch data once
-    LaunchedEffect(Unit) {
-        try {
-            val list = withContext(Dispatchers.IO) {
-                // ApiService.getCoffeeList() is a synchronous call in this project
-                RetrofitInstance.api.getCoffeeList()
-            }
-            coffeesState.value = list
-        } catch (e: Exception) {
-            // keep it simple for now: print the stacktrace and leave list empty
-            e.printStackTrace()
+/**
+ * Simple ViewModelProvider.Factory to construct AuthViewModel with a custom repository.
+ */
+class AuthViewModelFactory(private val repo: AuthRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AuthViewModel(repo) as T
         }
-    }
-
-    // Header + content
-    Column(modifier = modifier.padding(16.dp)) {
-        Text(text = "Hello $name")
-
-        if (coffeesState.value.isEmpty()) {
-            Text(
-                text = "Loading...",
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        } else {
-            LazyColumn(modifier = Modifier.padding(top = 8.dp)) {
-                items(coffeesState.value) { item ->
-                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Text(text = item.title)
-                        Text(text = item.description)
-                    }
-                }
-            }
-        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
 
-@Preview(showBackground = true)
+// Factory for HomeViewModel so we don't construct it directly inside a Composable
+class HomeViewModelFactory(private val repo: AuthRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return HomeViewModel(repo) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
+
 @Composable
-fun GreetingPreview() {
-    MarkMeTheme {
-        Greeting("Android")
+fun AppNavHost(navController: NavHostController, app: MarkMeApp) {
+
+    val authRepo: AuthRepository = app.authRepository
+
+    // Create a ViewModelFactory that provides the AuthRepository
+    val factory = AuthViewModelFactory(authRepo)
+    // Obtain the ViewModel using Compose's viewModel(...) which integrates with lifecycle
+    val authViewModel: AuthViewModel = viewModel(factory = factory)
+
+    // Obtain HomeViewModel via a factory instead of constructing it directly
+    val homeFactory = HomeViewModelFactory(authRepo)
+    val homeViewModel: HomeViewModel = viewModel(factory = homeFactory)
+
+    NavHost(navController = navController, startDestination = if(authViewModel.isLoggedIn()) Screen.Home.route else Screen.Login.route) {
+        composable(Screen.Login.route) {
+            LoginPage(navController = navController, viewModel = authViewModel)
+        }
+        composable(Screen.Home.route) {
+            MarkMeHomeScreen(navController, homeViewModel)
+        }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(onLogout = {
+                // Clear back stack and navigate to login
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Home.route) { inclusive = true }
+                }
+            })
+        }
     }
 }
