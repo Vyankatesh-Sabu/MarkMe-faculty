@@ -42,6 +42,18 @@ android {
 }
 
 dependencies {
+
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+// Use the latest stable version
+// Converter for JSON data (e.g., Gson)
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+// Use the same version as Retrofit
+// Optional: OkHttp logging interceptor for network request logging
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+// Use a compatible OkHttp version
+
+    implementation("androidx.compose.material:material-icons-extended:1.7.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
