@@ -6,9 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.vrsabu.markme.data.repository.AuthRepository
 import com.vrsabu.markme.navigation.Screen
 import com.vrsabu.markme.ui.screens.home.MarkMeHomeScreen
@@ -19,8 +22,9 @@ import com.vrsabu.markme.ui.theme.MarkMeTheme
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import com.vrsabu.markme.ui.screens.home.HomeViewModel
+import com.vrsabu.markme.ui.screens.attendanceScreen.AttendanceScreen
+import com.vrsabu.markme.ui.screens.attendanceScreen.StudentStatisticsScreen
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -85,13 +89,59 @@ fun AppNavHost(navController: NavHostController, app: MarkMeApp) {
             MarkMeHomeScreen(navController, homeViewModel)
         }
 
-        composable(Screen.Profile.route) {
-            ProfileScreen(onLogout = {
-                // Clear back stack and navigate to login
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(Screen.Home.route) { inclusive = true }
-                }
-            })
+        // Attendance route with courseId argument (Long)
+        composable(
+            route = "attendance/{courseId}",
+            arguments = listOf(navArgument("courseId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val courseIdLong = backStackEntry.arguments?.getLong("courseId") ?: 0L
+            AttendanceScreen(courseId = courseIdLong, navController = navController)
         }
-    }
-}
+
+        composable(
+            route = "attendance/{courseId}/students",
+            arguments = listOf(navArgument("courseId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val courseIdLong = backStackEntry.arguments?.getLong("courseId") ?: 0L
+            StudentStatisticsScreen(courseId = courseIdLong, navController = navController)
+        }
+
+        composable(
+            route = "attendance/{courseId}/take",
+            arguments = listOf(navArgument("courseId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val courseIdLong = backStackEntry.arguments?.getLong("courseId") ?: 0L
+            com.vrsabu.markme.ui.screens.attendanceSelection.AttendanceSelectionScreen(navController = navController, courseId = courseIdLong)
+        }
+
+        composable(
+            route = "attendance/session/{courseId}/{dateIso}",
+            arguments = listOf(
+                navArgument("courseId") { type = NavType.LongType },
+                navArgument("dateIso") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val courseIdLong = backStackEntry.arguments?.getLong("courseId") ?: 0L
+            val dateIso = backStackEntry.arguments?.getString("dateIso") ?: ""
+            com.vrsabu.markme.ui.screens.attendanceScreen.StudentListScreen(courseId = courseIdLong, dateIso = dateIso, navController = navController)
+        }
+
+         composable(Screen.Profile.route) {
+             ProfileScreen(onLogout = {
+                 // Ensure ViewModel and repository clear auth data first
+                 try {
+                     authViewModel.logout()
+                 } catch (_: Exception) {
+                     // ignore
+                 }
+
+                 // Clear back stack and navigate to login
+                 navController.navigate(Screen.Login.route) {
+                     popUpTo(Screen.Home.route) { inclusive = true }
+                 }
+             })
+         }
+
+
+     }
+ }

@@ -37,7 +37,7 @@ class AuthViewModel(
 
                         try {
                             authRepository.saveAuthData(accessToken, refreshToken, user)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             // Non-fatal
                         }
 
@@ -54,20 +54,33 @@ class AuthViewModel(
                             try {
                                 val json = JSONObject(errStr)
                                 json.optString("message", response.message())
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 response.message()
                             }
                         } ?: response.message()
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         response.message()
                     }
 
                     _authState.value = Result.failure(Exception(errMsg))
                 }
 
-            } catch (e: Exception) {
-                _authState.value = Result.failure(e)
+            } catch (_: Exception) {
+                _authState.value = Result.failure(Exception("Unexpected error"))
             }
         }
+    }
+
+    /**
+     * Logout: clear stored auth data and reset auth state so UI observing authState
+     * (for example LoginPage) won't automatically navigate back to Home.
+     */
+    fun logout() {
+        try {
+            authRepository.saveAuthData(null, null, null)
+        } catch (_: Exception) {
+            // ignore
+        }
+        _authState.value = null
     }
 }

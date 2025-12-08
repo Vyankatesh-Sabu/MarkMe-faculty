@@ -57,9 +57,9 @@ class AuthRepository {
         }
     }
 
-    fun getAccessToken(): String? = prefs?.getString(KEY_ACCESS_TOKEN, null) ?: accessToken
+    fun getAccessToken(): String? = prefs?.getString(KEY_ACCESS_TOKEN, null)
 
-    fun getRefreshToken(): String? = prefs?.getString(KEY_REFRESH_TOKEN, null) ?: refreshToken
+    fun getRefreshToken(): String? = prefs?.getString(KEY_REFRESH_TOKEN, null)
 
     fun getCurrentUser(): User? = prefs?.getString(KEY_USER, null)?.let { str ->
         try {

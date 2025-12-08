@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
 
-    private const val BASE_URL = "http://172.16.18.92:3000/"
+    private const val BASE_URL = "http://172.17.5.100:3000/"
 
     // Backing field for the ApiService; initialized in init(context)
     private var _api: ApiService? = null

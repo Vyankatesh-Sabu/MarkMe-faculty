@@ -31,7 +31,7 @@ fun LoginPage(
 
     // Navigate to Home when login succeeds
     LaunchedEffect(authState) {
-        if (authState?.getOrNull() != null) {
+        if (authState?.getOrNull() != null && viewModel.isLoggedIn()) {
             navController.navigate(Screen.Home.route) {
                 popUpTo(Screen.Login.route) { inclusive = true }
             }

@@ -38,12 +38,6 @@ import androidx.navigation.NavHostController
 import com.vrsabu.markme.data.remote.models.Course
 import com.vrsabu.markme.navigation.Screen
 
-// Jetpack Compose UI skeleton for the provided MarkMe screen
-// Note: Replace icons, colors, and typography with your design system.
-// This is a structural template covering the full layout.
-
-//private val Icons.Filled.AccessTime: Any
-
 
 @Composable
 fun MarkMeHomeScreen(navController: NavHostController, homeViewModel: HomeViewModel) {
@@ -63,9 +57,7 @@ fun MarkMeHomeScreen(navController: NavHostController, homeViewModel: HomeViewMo
             }
         )
         GreetingSection()
-        SubjectsSection(subjects)
-        TodayOverviewSection()
-        FeaturesGrid()
+        SubjectsSection(subjects, navController = navController)
     }
 }
 
@@ -117,7 +109,7 @@ fun GreetingSection() {
 }
 
 @Composable
-fun SubjectsSection(subjects: List<Course>) {
+fun SubjectsSection(subjects: List<Course>, navController: NavHostController) {
     Column() {
         Text(
             text = "My Subjects",
@@ -133,7 +125,11 @@ fun SubjectsSection(subjects: List<Course>) {
                 CourseCard(
                     courseName = course.courseName,
                     credits = course.credits,
-                    description = course.description
+                    description = course.description,
+                    onClick = {
+                        // Navigate using the Screen helper to build the route string
+                        navController.navigate(Screen.Attendance(course.id).route)
+                    }
                 )
             }
         }
@@ -144,12 +140,14 @@ fun SubjectsSection(subjects: List<Course>) {
 fun CourseCard(
     courseName: String,
     credits: Long,
-    description: String
+    description: String,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .padding(16.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable(enabled = true, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
