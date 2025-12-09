@@ -28,16 +28,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import com.vrsabu.markme.ui.components.PercentageDateLineChart
 import java.io.Serializable
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import kotlin.math.roundToInt
 
 // ---------------------------------
 // MODELS (Minimal for UI Display)
 // ---------------------------------
 
 data class Course(val courseName: String, val description: String)
-data class SessionInfo(val date: String, val room: String, val mlStatus: String, val presentCount: Int, val totalStudents: Int)
+// Added facultyId (optional) to SessionInfo so we can filter by faculty
+data class SessionInfo(val date: String, val room: String, val mlStatus: String, val presentCount: Int, val totalStudents: Int, val facultyId: String? = null)
 // Lightweight serializable student attendance DTO used to pass data via Nav savedStateHandle
 data class StudentAttendance(val firstName: String?, val lastName: String?, val rollNumber: String?, val isPresent: Boolean) : Serializable
 data class StudentStat(val name: String, val rollNo: String, val present: Int, val total: Int, val percentage: String)
@@ -80,7 +83,20 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
             val uiCourse = data?.course?.let { Course(it.courseName, it.description) }
                 ?: Course(courseName = "Unknown Course", description = "")
 
-            // full list of sessions from API
+            // Read faculty id from SharedPreferences. Assumptions:
+            // - preferences file: "markme_prefs"
+            // - primary key: "faculty_id" (fallback to "facultyId")
+            // If not present, we show all data (no filtering).
+            val context = LocalContext.current
+            val facultyIdPref = remember(context) {
+                val prefs = context.getSharedPreferences("markme_prefs", Context.MODE_PRIVATE)
+                // Prefer long stored as string or string id
+                val f1 = prefs.getString("faculty_id", null)
+                val f2 = prefs.getString("facultyId", null)
+                (f1 ?: f2 ?: "").trim()
+            }
+
+            // full list of sessions from API; include optional facultyId when available
             val allSessions = data?.attendanceByDate?.values?.toList()?.mapNotNull { entry ->
                 val date = entry.date ?: entry.session?.sessionDate ?: ""
                 val room = entry.session?.room ?: ""
@@ -88,25 +104,50 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
                 val students = entry.students ?: emptyList()
                 val presentCount = students.count { studentAtt -> studentAtt.isPresent == true }
                 val total = students.size
-                SessionInfo(date = date, room = room, mlStatus = ml, presentCount = presentCount, totalStudents = total)
+                // Safely extract faculty id from the entry.faculty (Any?) if present. Fallback to top-level data.faculty id.
+                val facultyIdFromEntry = when (val f = entry.faculty) {
+                    is Number -> f.toString()
+                    is String -> f
+                    is Map<*, *> -> {
+                        (f["id"] ?: f["_id"] ?: f["Id"])?.toString()
+                    }
+                    else -> null
+                } ?: data?.faculty?.id?.toString()
+                SessionInfo(date = date, room = room, mlStatus = ml, presentCount = presentCount, totalStudents = total, facultyId = facultyIdFromEntry)
             }?.sortedByDescending { it.date } ?: emptyList()
 
-            // derive studentStats/UI overall same as before
+            // Filter sessions by facultyIdPref if provided, otherwise show all
+            val filteredSessions = remember(allSessions, facultyIdPref) {
+                if (facultyIdPref.isBlank()) allSessions
+                else allSessions.filter { it.facultyId?.trim()?.let { fid -> fid == facultyIdPref } ?: false }
+            }
+
+            // derive studentStats/UI overall same as before (we keep studentStats unchanged if API provides aggregate stats only)
             val studentStats = data?.studentStats?.toList()?.mapNotNull { s ->
                 val stud = s.student
                 val name = listOfNotNull(stud?.firstName, stud?.lastName).joinToString(" ").ifEmpty { "Unknown" }
                 val roll = stud?.rollNumber ?: ""
-                val present = s.presentCount ?: 0
-                val total = s.totalClasses ?: 0
-                val perc = s.attendancePercentage ?: if (total > 0) String.format(Locale.getDefault(), "%.0f", (present.toDouble() / total * 100)) else "0"
+                // API uses Long for counts, convert safely to Int for the UI model
+                val presentLong = s.presentCount ?: 0L
+                val totalLong = s.totalClasses ?: 0L
+                val present = presentLong.toInt()
+                val total = totalLong.toInt()
+                val perc = s.attendancePercentage ?: if (totalLong > 0L) String.format(Locale.getDefault(), "%.0f", (presentLong.toDouble() / totalLong.toDouble() * 100)) else "0"
                 StudentStat(name = name, rollNo = roll, present = present, total = total, percentage = perc)
             } ?: emptyList()
 
-            val overall = data?.overallStats
+            // Recompute overall stats based on filteredSessions so analytics reflect the faculty selection
+            val totalSessionsFiltered = filteredSessions.size
+            val totalPresentFiltered = filteredSessions.sumOf { it.presentCount }
+            val totalStudentsAcrossSessions = filteredSessions.sumOf { it.totalStudents }
+            val overallPercentFiltered = if (totalStudentsAcrossSessions > 0) {
+                ((totalPresentFiltered.toDouble() / totalStudentsAcrossSessions.toDouble()) * 100).roundToInt()
+            } else 0
+
             val uiOverall = OverallStats(
-                totalSessions = overall?.totalSessions ?: 0,
-                totalPresent = overall?.totalPresent ?: (studentStats.sumOf { it.present }),
-                overallAttendancePercentage = overall?.overallAttendancePercentage ?: 0
+                totalSessions = totalSessionsFiltered,
+                totalPresent = totalPresentFiltered,
+                overallAttendancePercentage = overallPercentFiltered
             )
 
             // Build per-student percentage list (present / total) to pass into charts if needed
@@ -114,35 +155,47 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
                 if (s.total > 0) (s.present.toFloat() / s.total.toFloat() * 100f) else 0f
             }
 
-            // --- Date picker state derived from allSessions ---
-            // Use only dates returned by the API. Do NOT inject today's date or other client-side fake values.
-            val isoDates = allSessions.map { it.date.take(10) }.distinct().sortedDescending()
+            // --- Date picker state derived from filteredSessions ---
+            // Use only dates returned by the API for the selected faculty. Do NOT inject today's date or other client-side fake values.
+            val isoDates = filteredSessions.map { it.date.take(10) }.distinct().sortedDescending()
             val allDates = isoDates
 
             // If the API returned no dates, use an empty selection.
             var selectedDateIso by remember { mutableStateOf(isoDates.firstOrNull() ?: "") }
 
-            // Prepare a map of statuses for quick lookup
-            val dateStatusMap = remember(allSessions) {
+            // Prepare a map of statuses for quick lookup (based on filteredSessions)
+            val dateStatusMap = remember(filteredSessions) {
                 allDates.associateWith { iso ->
                     if (isoDates.contains(iso)) {
-                        val s = allSessions.firstOrNull { it.date.take(10) == iso }
+                        val s = filteredSessions.firstOrNull { it.date.take(10) == iso }
                         if (s != null && (s.mlStatus.equals("processed", true) || s.presentCount > 0)) DateStatus.PROCESSED else DateStatus.PENDING
                     } else DateStatus.UNKNOWN
                 }
             }
 
-            // Map for quick present count badge on chips
-            val dateCountMap = remember(allSessions) {
+            // Map for quick present count badge on chips (based on filteredSessions)
+            val dateCountMap = remember(filteredSessions) {
                 allDates.associateWith { iso ->
-                    allSessions.firstOrNull { it.date.take(10) == iso }?.presentCount ?: 0
+                    filteredSessions.firstOrNull { it.date.take(10) == iso }?.presentCount ?: 0
                 }
             }
 
             // Build a map of dateIso -> list of StudentAttendance (serializable) so we can pass students when navigating
-            val dateStudentsMap: Map<String, List<StudentAttendance>> = remember(allSessions) {
+            val dateStudentsMap: Map<String, List<StudentAttendance>> = remember(filteredSessions) {
                 data?.attendanceByDate?.values?.mapNotNull { entry ->
                     val iso = entry.date?.take(10) ?: entry.session?.sessionDate?.take(10) ?: return@mapNotNull null
+                    // Safely extract faculty id (entry.faculty may be a primitive, string or map)
+                    val facultyIdFromEntry = when (val f = entry.faculty) {
+                        is Number -> f.toString()
+                        is String -> f
+                        is Map<*, *> -> {
+                            (f["id"] ?: f["_id"] ?: f["Id"])?.toString()
+                        }
+                        else -> null
+                    } ?: data?.faculty?.id?.toString()
+                    // if faculty filter is set, skip entries that don't match
+                    if (facultyIdPref.isNotBlank() && (facultyIdFromEntry?.trim() ?: "") != facultyIdPref) return@mapNotNull null
+
                     val studs = entry.students?.map { s ->
                         StudentAttendance(
                             firstName = s.student?.firstName,
@@ -161,7 +214,7 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
                 course = uiCourse,
                 courseId = courseId,
                 overallStats = uiOverall,
-                sessions = allSessions,
+                sessions = filteredSessions,
                 allDates = allDates,
                 selectedDateIso = selectedDateIso,
                 dateStatusMap = dateStatusMap,

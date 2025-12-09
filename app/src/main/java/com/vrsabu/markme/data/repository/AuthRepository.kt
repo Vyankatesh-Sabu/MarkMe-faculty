@@ -127,6 +127,30 @@ class AuthRepository {
         }
     }
 
+    suspend fun getAnalyticsData(): Result<com.vrsabu.markme.data.remote.models.AnalyticsResponse> {
+        return try {
+            val response = RetrofitInstance.api.getAnalyticsData()
+
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("Empty analytics response"))
+                }
+            } else {
+                val err = try {
+                    response.errorBody()?.string() ?: response.message()
+                } catch (e: Exception) {
+                    response.message()
+                }
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "markme_auth"
         private const val KEY_ACCESS_TOKEN = "access_token"

@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
@@ -22,6 +21,7 @@ import com.vrsabu.markme.ui.screens.home.MarkMeHomeScreen
 import com.vrsabu.markme.ui.screens.login.AuthViewModel
 import com.vrsabu.markme.ui.screens.login.LoginPage
 import com.vrsabu.markme.ui.screens.profile.ProfileScreen
+import com.vrsabu.markme.ui.screens.schedule.ScheduleScreen
 import com.vrsabu.markme.ui.theme.MarkMeTheme
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -144,6 +144,10 @@ fun AppNavHost(navController: NavHostController, app: MarkMeApp) {
                  }
              })
          }
+
+        composable(Screen.Schedule.route) {
+            ScheduleScreen(navController = navController)
+        }
 
 
      }

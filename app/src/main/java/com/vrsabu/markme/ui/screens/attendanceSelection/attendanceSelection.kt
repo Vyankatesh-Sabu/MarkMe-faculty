@@ -24,6 +24,7 @@ import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.Color
 
 // -------------------------------
 // DATA CLASS
@@ -188,31 +189,57 @@ fun AttendanceSelectionScreen(
 // -------------------------------
 // SECTION CARD (for nice UI)
 // -------------------------------
+// -------------------------------
+// SECTION CARD (soft grey background)
+// -------------------------------
 @Composable
 fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+            .shadow(3.dp, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
-
         Text(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary
         )
-
         Spacer(modifier = Modifier.height(10.dp))
-
         content()
     }
 }
 
 // -------------------------------
-// CLASS SELECTOR
+// DATE SELECTOR (soft pastel blue)
+// -------------------------------
+@Composable
+fun DateSelector(
+    selectedText: String,
+    onSelect: (String) -> Unit
+) {
+    Button(
+        onClick = { onSelect(getCurrentFormattedDateTime()) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF90CAF9) // pastel blue
+        )
+    ) {
+        Text(
+            text = selectedText,
+            color = Color(0xFF0D47A1), // dark blue for contrast
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+// -------------------------------
+// CLASS SELECTOR (soft green/yellow/red selection)
 // -------------------------------
 @Composable
 fun ClassSelector(
@@ -226,6 +253,12 @@ fun ClassSelector(
     ) {
         classItems.forEachIndexed { index, item ->
 
+            val chipColor = if (item.isSelected) Color(0xFFA5D6A7) // pastel green
+            else MaterialTheme.colorScheme.surfaceVariant // soft grey
+
+            val textColor = if (item.isSelected) Color(0xFF1B5E20) // dark green
+            else MaterialTheme.colorScheme.onSurfaceVariant
+
             ElevatedFilterChip(
                 selected = item.isSelected,
                 onClick = {
@@ -235,35 +268,19 @@ fun ClassSelector(
                     }
                     onSelectionChanged(updatedList)
                 },
-                label = {
-                    Text("${item.branch}-${item.section}")
-                },
-                modifier = Modifier.padding(end = 8.dp)
+                label = { Text("${item.branch}-${item.section}", color = textColor) },
+                modifier = Modifier.padding(end = 8.dp),
+                colors = FilterChipDefaults.elevatedFilterChipColors(
+                    containerColor = chipColor,
+                    selectedContainerColor = chipColor,
+                    labelColor = textColor,
+                    selectedLabelColor = textColor
+                )
             )
         }
     }
 }
 
-// -------------------------------
-// DATE SELECTOR (simple, replace with real picker later)
-// -------------------------------
-@Composable
-fun DateSelector(
-    selectedText: String,
-    onSelect: (String) -> Unit
-) {
-    Button(
-        onClick = {
-            onSelect(getCurrentFormattedDateTime())
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Text(selectedText)
-    }
-}
 
 fun getCurrentFormattedDateTime(): String {
     val formatter = DateTimeFormatter.ofPattern("dd MMMM yyyy HH:mm", Locale.getDefault())

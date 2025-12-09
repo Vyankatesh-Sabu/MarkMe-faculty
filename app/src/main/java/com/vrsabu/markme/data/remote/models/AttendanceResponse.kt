@@ -50,8 +50,8 @@ data class StudentInfo(
 // student stat item in response
 data class StudentStatResponse(
     val student: StudentInfo?,
-    val totalClasses: Int?,
-    val presentCount: Int?,
+    val totalClasses: Long?,
+    val presentCount: Long?,
     val attendancePercentage: String?
 )
 
