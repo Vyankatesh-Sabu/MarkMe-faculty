@@ -15,10 +15,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import java.time.Instant
+import com.vrsabu.markme.data.remote.models.TakeAttendanceRequest
+import com.vrsabu.markme.data.remote.models.Class as ApiClass
+import com.vrsabu.markme.data.repository.AuthRepository
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.collectAsState
 
 // -------------------------------
 // DATA CLASS
@@ -33,15 +38,15 @@ data class ClassItem(
 // MAIN SCREEN
 // -------------------------------
 @Composable
-fun AttendanceSelectionScreen(navController: NavHostController? = null, courseId: Long? = null) {
+fun AttendanceSelectionScreen(
+    navController: NavHostController? = null,
+    courseId: Long? = null,
+    authRepository: AuthRepository? = null,
+    vm: AttendanceSelectionViewModel = viewModel()
+) {
 
     var selectedDate by remember { mutableStateOf(getCurrentFormattedDateTime()) }
     var room by remember { mutableStateOf("") }
-
-    // Use parameters to avoid 'parameter is never used' warnings in static analysis.
-    // These are intentional no-op references; the navController is used later on submit.
-    navController?.let { /* intentionally referenced */ }
-    courseId?.let { /* intentionally referenced */ }
 
     val classItems = remember {
         mutableStateOf(
@@ -51,13 +56,44 @@ fun AttendanceSelectionScreen(navController: NavHostController? = null, courseId
                 ClassItem("ECE", "A"),
                 ClassItem("ECE", "B"),
                 ClassItem("AIML", "A"),
-                ClassItem("AI", "B")
+                ClassItem("AI", "B"),
+                ClassItem("IOT", "A")
             )
         )
     }
 
+    // read current user id from authRepository when available
+    val facultyId: Long? = authRepository?.getCurrentUser()?.id?.toLong()
+
+    // Snackbar host state to show submission messages
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Collect UI state from ViewModel
+    val uiState by vm.uiState.collectAsState()
+
+    // react to success/error to show snackbar
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is SubmissionState.Success -> {
+                val msg = (uiState as SubmissionState.Success).message
+                snackbarHostState.showSnackbar(msg)
+                // navigate back after success if navController provided
+                navController?.navigateUp()
+            }
+            is SubmissionState.Error -> {
+                val msg = (uiState as SubmissionState.Error).message
+                snackbarHostState.showSnackbar(msg)
+            }
+            else -> {
+                // no-op for Idle/Loading
+            }
+        }
+    }
+
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { inner ->
 
         Column(
@@ -78,7 +114,7 @@ fun AttendanceSelectionScreen(navController: NavHostController? = null, courseId
             )
 
             // DATE SECTION
-            SectionCard(title = "Select Date & Time") {
+            SectionCard(title = "Date & Time") {
                 DateSelector(
                     selectedText = selectedDate,
                     onSelect = { selectedDate = it }
@@ -109,15 +145,20 @@ fun AttendanceSelectionScreen(navController: NavHostController? = null, courseId
                 onClick = {
 
                     val selectedClasses = classItems.value.filter { it.isSelected }
-                        .map { mapOf("branch" to it.branch, "section" to it.section) }
+                        .map { ApiClass(branch = it.branch, section = it.section) }
 
-                    println("---- SUBMITTED ----")
-                    println("sessionDate = $selectedDate")
-                    println("room = $room")
-                    println("class = $selectedClasses")
+                    // build request
+                    val request = TakeAttendanceRequest(
+                        facultyId = facultyId ?: -1,
+                        courseId = courseId ?: -1,
+                        classes = selectedClasses,
+                        sessionDate = selectedDate
+                    )
 
-                    // navigate back to previous screen after submission if navController provided
-                    navController?.navigateUp()
+                    // call viewModel to submit
+                    coroutineScope.launch {
+                        vm.takeAttendance(request)
+                    }
 
                 },
                 modifier = Modifier
@@ -125,7 +166,20 @@ fun AttendanceSelectionScreen(navController: NavHostController? = null, courseId
                     .height(55.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("Submit", fontSize = 18.sp)
+                if (uiState is SubmissionState.Loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Submitting...", fontSize = 16.sp)
+                } else {
+                    Text("Submit", fontSize = 18.sp)
+                }
+            }
+
+            // optionally show latest status text below the button
+            when (uiState) {
+                is SubmissionState.Success -> Text((uiState as SubmissionState.Success).message, color = MaterialTheme.colorScheme.primary)
+                is SubmissionState.Error -> Text((uiState as SubmissionState.Error).message, color = MaterialTheme.colorScheme.error)
+                else -> {}
             }
         }
     }
@@ -216,8 +270,10 @@ fun getCurrentFormattedDateTime(): String {
     return ZonedDateTime.now().format(formatter)
 }
 
+
+
 @Preview(showBackground = true)
 @Composable
 fun AttendanceSelectionPreview() {
-    AttendanceSelectionScreen()
+    AttendanceSelectionScreen(authRepository = null)
 }

@@ -15,7 +15,7 @@
 
     <!-- Allow cleartext only for local dev host -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">172.17.5.100</domain>
+        <domain includeSubdomains="false">api.mark-me.in</domain>
     </domain-config>
 </network-security-config>
 

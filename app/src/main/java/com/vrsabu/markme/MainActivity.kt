@@ -1,11 +1,15 @@
 package com.vrsabu.markme
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,7 +31,6 @@ import com.vrsabu.markme.ui.screens.attendanceScreen.AttendanceScreen
 import com.vrsabu.markme.ui.screens.attendanceScreen.StudentStatisticsScreen
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -111,7 +114,7 @@ fun AppNavHost(navController: NavHostController, app: MarkMeApp) {
             arguments = listOf(navArgument("courseId") { type = NavType.LongType })
         ) { backStackEntry ->
             val courseIdLong = backStackEntry.arguments?.getLong("courseId") ?: 0L
-            com.vrsabu.markme.ui.screens.attendanceSelection.AttendanceSelectionScreen(navController = navController, courseId = courseIdLong)
+            com.vrsabu.markme.ui.screens.attendanceSelection.AttendanceSelectionScreen(navController = navController, courseId = courseIdLong, authRepo)
         }
 
         composable(
@@ -145,3 +148,16 @@ fun AppNavHost(navController: NavHostController, app: MarkMeApp) {
 
      }
  }
+
+@Composable
+fun AskNotificationPermission() {
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+}
+

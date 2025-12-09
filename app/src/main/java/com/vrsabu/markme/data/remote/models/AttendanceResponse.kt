@@ -60,6 +60,6 @@ data class OverallStatsResponse(
     val totalSessions: Int?,
     val totalAttendanceRecords: Int?,
     val totalPresent: Int?,
-    val overallAttendancePercentage: Int?
+    val overallAttendancePercentage: Float?
 )
 

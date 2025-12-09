@@ -222,7 +222,7 @@ private fun BodyWithViewModel(modifier: Modifier, viewModel: ProfileViewModel, o
                     // Perform logout: clear stored auth data via MarkMeApp's repository (if available)
                     try {
                         val app = context.applicationContext as? com.vrsabu.markme.MarkMeApp
-                        app?.authRepository?.saveAuthData(null, null, null)
+                        app?.authRepository?.saveAuthData(null, null, null, null, null)
                     } catch (_: Exception) {
                         // ignore
                     }

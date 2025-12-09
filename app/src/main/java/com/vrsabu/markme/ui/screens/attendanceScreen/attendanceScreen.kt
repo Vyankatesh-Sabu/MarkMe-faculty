@@ -27,7 +27,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import com.vrsabu.markme.ui.components.PercentageDateLineChart
 import java.io.Serializable
 
 // ---------------------------------
@@ -35,12 +37,11 @@ import java.io.Serializable
 // ---------------------------------
 
 data class Course(val courseName: String, val description: String)
-data class Faculty(val firstName: String, val lastName: String, val department: String)
 data class SessionInfo(val date: String, val room: String, val mlStatus: String, val presentCount: Int, val totalStudents: Int)
 // Lightweight serializable student attendance DTO used to pass data via Nav savedStateHandle
 data class StudentAttendance(val firstName: String?, val lastName: String?, val rollNumber: String?, val isPresent: Boolean) : Serializable
 data class StudentStat(val name: String, val rollNo: String, val present: Int, val total: Int, val percentage: String)
-data class OverallStats(val totalSessions: Int, val totalPresent: Int, val overallAttendancePercentage: Int)
+data class OverallStats(val totalSessions: Int, val totalPresent: Int, val overallAttendancePercentage: Any)
 
 enum class DateStatus { PROCESSED, PENDING, UNKNOWN }
 
@@ -79,8 +80,6 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
             val uiCourse = data?.course?.let { Course(it.courseName, it.description) }
                 ?: Course(courseName = "Unknown Course", description = "")
 
-            // faculty info not shown in this layout; keep data available in repo if needed
-
             // full list of sessions from API
             val allSessions = data?.attendanceByDate?.values?.toList()?.mapNotNull { entry ->
                 val date = entry.date ?: entry.session?.sessionDate ?: ""
@@ -109,6 +108,11 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
                 totalPresent = overall?.totalPresent ?: (studentStats.sumOf { it.present }),
                 overallAttendancePercentage = overall?.overallAttendancePercentage ?: 0
             )
+
+            // Build per-student percentage list (present / total) to pass into charts if needed
+            val studentPercentages: List<Float> = studentStats.map { s ->
+                if (s.total > 0) (s.present.toFloat() / s.total.toFloat() * 100f) else 0f
+            }
 
             // --- Date picker state derived from allSessions ---
             // Use only dates returned by the API. Do NOT inject today's date or other client-side fake values.
@@ -163,6 +167,7 @@ fun AttendanceScreen(courseId: Long, navController: NavHostController) {
                 dateStatusMap = dateStatusMap,
                 dateCountMap = dateCountMap,
                 dateStudentsMap = dateStudentsMap,
+                studentPercentages = studentPercentages,
                 onDateSelected = { selectedDateIso = it },
                 onViewStudents = {
                     // navigate to student statistics screen for this course
@@ -194,6 +199,8 @@ fun AttendanceOverviewScreen(
     dateStatusMap: Map<String, DateStatus>,
     dateCountMap: Map<String, Int>,
     dateStudentsMap: Map<String, List<StudentAttendance>>,
+    // NEW: optional arrays derived from student stats so callers can plot student present/total
+    studentPercentages: List<Float> = emptyList(),
     onDateSelected: (String) -> Unit,
     onViewStudents: () -> Unit,
     onTakeAttendance: () -> Unit // new callback for taking attendance
@@ -205,7 +212,7 @@ fun AttendanceOverviewScreen(
                 title = { Text(course.courseName) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -225,6 +232,20 @@ fun AttendanceOverviewScreen(
                     Text(text = course.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.height(6.dp))
                     OverallStatsCard(overallStats)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // percentage by date line chart (new)
+                    // If `studentPercentages` is provided we prefer that as the data source for the chart
+                    // Build simple epoch-based x values (strings) so the chart's date formatter can render labels.
+                    // We create one x-value per student percentage to ensure the lists match size.
+                    val studentChartDates = remember(studentPercentages) {
+                        val today = System.currentTimeMillis()
+                        val dayMs = 24L * 60L * 60L * 1000L
+                        studentPercentages.indices.map { i -> (today + i * dayMs).toString() }
+                    }
+
+                    PercentageDateLineChart(dates = studentChartDates, percentages = studentPercentages, modifier = Modifier.fillMaxWidth())
+
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 }
             }

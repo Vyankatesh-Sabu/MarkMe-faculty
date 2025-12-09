@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "698361626454",
+    "project_id": "markme-fab08",
+    "storage_bucket": "markme-fab08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:698361626454:android:b0d35cce8dafa853f8a0f7",
+        "android_client_info": {
+          "package_name": "com.vrsabu.markme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAef9NHhCQYZWn4HMVP0MXEKFIoeCJB7UQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

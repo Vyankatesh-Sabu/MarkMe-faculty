@@ -5,6 +5,8 @@ import com.vrsabu.markme.data.remote.models.FacultyProfileResponse
 import com.vrsabu.markme.data.remote.models.LoginRequest
 import com.vrsabu.markme.data.remote.models.LoginResponse
 import com.vrsabu.markme.data.remote.models.MySubjectsResponse
+import com.vrsabu.markme.data.remote.models.TakeAttendanceReponse
+import com.vrsabu.markme.data.remote.models.TakeAttendanceRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -25,4 +27,7 @@ interface ApiService {
     // Fetch faculty attendance overview for a given course id
     @GET("api/v1/faculty/attendance")
     suspend fun FacultyAttendance(@Query("courseId") courseId: Long): Response<AttendanceResponse>
+
+    @POST("api/v1/attendancesessions")
+    suspend fun TakeAttendance(@Body takeAttendanceReponse: TakeAttendanceRequest) : Response<TakeAttendanceReponse>
 }

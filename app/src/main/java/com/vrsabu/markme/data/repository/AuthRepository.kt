@@ -29,13 +29,14 @@ class AuthRepository {
         }
     }
 
-    fun saveAuthData(accessToken: String?, refreshToken: String?, user: User?) {
+    fun saveAuthData(accessToken: String?, refreshToken: String?, user: User?, id : Int?, role : String?) {
         val p = prefs
         if (p != null) {
             val editor = p.edit()
             editor.putString(KEY_ACCESS_TOKEN, accessToken)
             editor.putString(KEY_REFRESH_TOKEN, refreshToken)
-
+            editor.putString(ID, id.toString())
+            editor.putString(ROLE, role)
             if (user != null) {
                 val userJson = JSONObject().apply {
                     put("id", user.id)
@@ -132,6 +133,10 @@ class AuthRepository {
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_USER = "user"
 
+        private const val ID = "id"
+
+        private const val ROLE = "role"
+
         private var prefs: SharedPreferences? = null
 
         /**
@@ -139,6 +144,7 @@ class AuthRepository {
          */
         fun init(context: Context) {
             prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
         }
     }
 }

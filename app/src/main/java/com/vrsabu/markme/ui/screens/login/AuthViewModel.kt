@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.vrsabu.markme.data.remote.RetrofitInstance
 import com.vrsabu.markme.data.remote.models.LoginRequest
 import com.vrsabu.markme.data.repository.AuthRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -34,9 +36,11 @@ class AuthViewModel(
                         val accessToken = body.data?.accessToken
                         val refreshToken = body.data?.refreshToken
                         val user = body.data?.user
+                        val id = user?.id
+
 
                         try {
-                            authRepository.saveAuthData(accessToken, refreshToken, user)
+                            authRepository.saveAuthData(accessToken, refreshToken, user, user?.id, user?.role)
                         } catch (_: Exception) {
                             // Non-fatal
                         }
@@ -77,7 +81,7 @@ class AuthViewModel(
      */
     fun logout() {
         try {
-            authRepository.saveAuthData(null, null, null)
+            authRepository.saveAuthData(null, null, null, null, null)
         } catch (_: Exception) {
             // ignore
         }

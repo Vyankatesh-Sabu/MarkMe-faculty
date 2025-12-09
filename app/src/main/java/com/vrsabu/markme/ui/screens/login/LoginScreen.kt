@@ -14,12 +14,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.vrsabu.markme.R
 import com.vrsabu.markme.navigation.Screen
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @Composable
 fun LoginPage(
@@ -56,6 +60,12 @@ fun LoginScreenContent(
 
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+
+    // New: password visibility toggle state
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    // Extract error message from authState if present
+    val errorMessage: String? = authState?.exceptionOrNull()?.message
 
     Column(
         modifier = Modifier
@@ -106,10 +116,29 @@ fun LoginScreenContent(
             onValueChange = { password = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             singleLine = true,
-            shape = MaterialTheme.shapes.extraLarge
+            shape = MaterialTheme.shapes.extraLarge,
+            trailingIcon = {
+                val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Hide password" else "Show password")
+                }
+            }
         )
+
+        // Show inline error message like a typical login screen when request failed
+        if (!errorMessage.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp),
+                fontSize = 14.sp
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
 
